@@ -1,4 +1,5 @@
-#include <Windows.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include "winternl.h"
 #include <stdio.h>
 

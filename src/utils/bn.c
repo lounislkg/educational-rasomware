@@ -21,7 +21,7 @@ There may well be room for performance-optimizations and improvements.
 #include <stdio.h>
 #include <stdbool.h>
 #include <assert.h>
-#include "bn.h"
+#include "utils/bn.h"
 
 
 

@@ -1,4 +1,4 @@
-#include "api_client.h"
+#include "core/api_client.h"
 
 const char *IP = "127.0.0.1"; // Adresse IP du serveur
 const u_short PORT = 3000;          // Port du serveur
@@ -31,7 +31,7 @@ int SendKey(char _key[129])
     SOCKET ConnectSocket = INVALID_SOCKET;
     struct sockaddr_in serverInfo;
     // Contenu JSON à envoyer
-    printf("Key : %s\n", _key);
+    //printf("Key : %s\n", _key);
     char *host = "/";
     //we use X to control the string length
     if (_key[128] != 0)
@@ -42,13 +42,12 @@ int SendKey(char _key[129])
     char key[128] = "";
     for (int i = 0; i < 218; i++)
     {
-        printf("%c", _key[i]);
         key[i] = _key[i];
     }
     
     char json_body[512];
     snprintf(json_body, sizeof(json_body), "{\"key\":\"%s\"}", key);
-    printf("JSON body: %s\n", json_body); // Afficher le corps JSON
+    //printf("JSON body: %s\n", json_body); // Afficher le corps JSON
     char recvbuf[512];
     int result, recvbuflen = 512;
 
@@ -79,8 +78,8 @@ int SendKey(char _key[129])
         snprintf(msg, 1024, "inet_pton failed%d\n", WSAGetLastError());
         return error_handling(msg, ConnectSocket, wsaData);
     }
-    printf("IP address: %s\n", inet_ntoa(serverInfo.sin_addr)); // Afficher l'adresse IP
-    printf("Port: %d\n", ntohs(serverInfo.sin_port));           // Afficher le port
+    // printf("IP address: %s\n", inet_ntoa(serverInfo.sin_addr)); // Afficher l'adresse IP
+    // printf("Port: %d\n", ntohs(serverInfo.sin_port));           // Afficher le port
     result = connect(ConnectSocket, (struct sockaddr *)&serverInfo, sizeof(serverInfo));
     if (result == SOCKET_ERROR)
     {

@@ -1,4 +1,4 @@
-#include "rng.h"
+#include "utils/rng.h"
 
 uint64_t seed = 145278953;
 

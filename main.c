@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <winternl.h>
-#include ".\core\list_files\list_files.h"
+#include "include/core/list_files.h"
 
 #pragma comment(lib, "ntdll.lib")
 

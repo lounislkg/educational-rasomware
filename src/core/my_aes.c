@@ -1,4 +1,4 @@
-#include "my_aes.h"
+#include "core/my_aes.h"
 
 /* // Example state for testing purposes
 // Will be replaced with the input stream
@@ -32,7 +32,7 @@ static const uint8_t sbox[256] = {
 // Rcon table for KeySchedule (this table works for a maximum of 10 keys)
 static const uint8_t Rcon[11] = {
     0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36};
- 
+
 // Function to print the state matrix
 void printState(state_t state)
 {
@@ -64,7 +64,6 @@ static void XOR(uint8_t *word1, uint8_t *word2)
         word1[i] ^= word2[i];
     }
 }
-
 
 // Generate a random AES key of 128 bits
 static void KeyExpansion(state_t key, state_t new_key, int round)
@@ -130,7 +129,7 @@ static void KeyExpansion(state_t key, state_t new_key, int round)
 }
 
 // Generate 10 keys from the base key
-static void GenerateTenKeys(state_t key, state_t *keys)
+void GenerateTenKeys(state_t key, state_t *keys)
 {
     state_t new_key = {{0}};     // Initialize new_key to zero
     state_t pending_key = {{0}}; // Initialize pending_key to zero
@@ -164,7 +163,6 @@ static void GenerateTenKeys(state_t key, state_t *keys)
         }
     }
 }
-
 
 // SubBytes
 static void SubByte(state_t byte)
@@ -258,40 +256,24 @@ static void Round(state_t state, state_t key)
     AddRoundKey(&new_state, key);
 }
 
-
-int main(int argc, char *argv[])
+int aes(state_t keys[10], char bytes[16])
 {
     // Extract the state from the command line arguments
     state_t state = {{0}}; // Initialize all values to zero
-    printf("Argc : %d\n", argc);
-    printf("Argv : %s\n", argv[1]);
-    if (argc != 2)
+    printf("Argv : %s\n", bytes);
+    if (bytes == NULL || keys == NULL)
     {
-        printf("Usage:\n%s <16 hex values>\n", argv[0]);
+        printf("Usage:\n%s <16 hex values>\n", bytes);
         return 1;
     }
     for (int i = 0; i < 16; i++)
     {
-        char buff[2] = {argv[1][i*2], argv[1][i*2+1]}; // Create a string of 2 chars
+        char buff[2] = {bytes[i * 2], bytes[i * 2 + 1]}; // Create a string of 2 chars
         sscanf(buff, "%2hhx", &state[i / 4][i % 4]);
     }
-    
 
     printf("Initial State:\n");
     printState(state);
-
-    generateRandomSeed(); // Initialize the random seed
-    // Generate a random key of 128 bits (16 bytes)
-    state_t key;
-    generateRandomKey(key);
-
-    printf("Random Key:\n");
-    printState(key);
-
-    // Generate 10 keys from the base key
-    state_t keys[10] = {{{0}}}; // Initialize all keys to zero (the base_key is added in the function)
-    // Generate the keys (can't be more than 10 keys because of the Rcon table)
-    GenerateTenKeys(key, keys);
 
     // Call the Round function 10 times for the 10 rounds
     for (int i = 0; i < 10; i++)
@@ -308,8 +290,31 @@ int main(int argc, char *argv[])
     printf("Final State:\n");
     printState(new_state);
 
-    // Send the key to the server 
-    // TODO : Encrypt the key using RSA
+    
+
+    // Check if there's something to free
+
+    return 0;
+}
+/* 
+int main()
+{
+    generateRandomSeed(); // Initialize the random seed
+    // Generate a random key of 128 bits (16 bytes)
+    state_t key;
+    generateRandomKey(key);
+
+    printf("Random Key:\n");
+    printState(key);
+
+    // Generate 10 keys from the base key
+    state_t keys[10] = {{{0}}}; // Initialize all keys to zero (the base_key is added in the function)
+    // Generate the keys (can't be more than 10 keys because of the Rcon table)
+    GenerateTenKeys(key, keys);
+
+    aes(keys, "23456789ABCDEF0109546789CBA3EF10");
+
+    // Send the key to the server
     char buff[257] = {'X'}; // 256 bytes + 1 for the null terminator
 
     uint8_t key_elongate[16] = {0}; // 16 bytes
@@ -319,7 +324,7 @@ int main(int argc, char *argv[])
         // Convert to char
         key_elongate[i] = key[i / 4][i % 4];
     }
-    
+
     // Encrypt the message using RSA
     rsa(key_elongate, buff);
     int i = 0;
@@ -331,23 +336,15 @@ int main(int argc, char *argv[])
     }
     printf("'\n");
     printf("Encrypted Key length: %d\n", i);
-    /* char charKey[33] = ""; // 32 bytes + 1 for the null terminator
-    for (int i = 0; i < 32; i++)
-    {
-        // Convert the key to a hex string
-        sprintf(&charKey[i * 2], "%02X", new_state[i / 4][i % 4]);
-    }
-    charKey[32] = 'X'; // Add the null terminator */
 
     // Send the key to the server (16 bytes)
-    if (SendKey(buff); == 0) {
+    if (SendKey(buff) == 0)
+    {
         return 0;
-    } else {
+    }
+    else
+    {
         printf("Send failed\n");
         return 1;
-    } 
-
-    // Check if there's something to free
-    
-    return 0;
-}
+    }
+} */
