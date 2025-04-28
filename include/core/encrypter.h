@@ -2,6 +2,8 @@
 #include <windows.h>
 #include "winternl.h"
 #include <stdio.h>
+#include <stdint.h>
+
 
 #pragma comment(lib, "ntdll")
 

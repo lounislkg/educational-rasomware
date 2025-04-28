@@ -1,8 +1,5 @@
 #include <stdint.h>
 #include <stdio.h>
-#include "core/api_client.h"
-#include "utils/rng.h"
-#include "core/rsa.h"
 
 typedef uint8_t state_t[4][4];
 

