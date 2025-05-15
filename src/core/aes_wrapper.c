@@ -1,17 +1,12 @@
-#define _WIN32_WINNT 0x0A00 // Windows 10 and later
+#define _WIN32_WINNT 0x0600 // Windows 7 and later
 #include <windows.h>
-#include <threadpoolapiset.h>
-#include <winbase.h> // Pour les fonctions de gestion de fichiers
-#include <processthreadsapi.h> // Parfois utile pour certains contextes
-#include <synchapi.h>          // Synchronisation si besoin
-#include <winnt.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "core/aes_wrapper.h"
 
 
-#define CHUNK_SIZE 16
-#define VIEW_SIZE  (64 * 1024) // 64 KB
+#define CHUNK_SIZE 4 
+// chunk size  explication
+// Car on travail avec des uint32_t donc ils contiennent 4 octets de mémoire :
+// 16 octets par vecteur state / 4 octets par chunk  => de faire un offset qui s'incrémente de 4 par itération.
 
 typedef struct {
     uint32_t *ptr;
@@ -20,27 +15,43 @@ typedef struct {
 } EncryptJob;
 
 void uint32ToUint8Array(uint32_t input, uint8_t output[4]) {
-    output[0] = (uint8_t)(input & 0xFF);
+    output[0] = (uint8_t)(input & 0xFF); // little-endian / LSB (octet de poid faible) 
     output[1] = (uint8_t)((input >> 8) & 0xFF);
     output[2] = (uint8_t)((input >> 16) & 0xFF);
-    output[3] = (uint8_t)((input >> 24) & 0xFF);
+    output[3] = (uint8_t)((input >> 24) & 0xFF); // big-endian (octet de poid fort)
 }
+/* 
+void uint8ArrayToUint32(uint8_t input[4],  out) {
+    uint32_t = 
+} */
 
 VOID CALLBACK EncryptWorkCallback(PTP_CALLBACK_INSTANCE instance, PVOID context, PTP_WORK work) {
     EncryptJob* job = (EncryptJob*)context;
-    uint32_t* data = (uint32_t*)job->ptr;
+    uint32_t* data = job->ptr;
     SIZE_T size = job->size;
     state_t* keys = job->keys; // Use the keys from the job
 
-    state_t dataState;
+    DWORD threadId = GetCurrentThreadId();
+    
+    state_t dataState = {{0}};
     for (int i=0; i < 4; i++) {
         uint8_t block[4];
         uint32ToUint8Array(data[i], block);
-        printf("Block %d: %02X %02X %02X %02X\n", i, block[0], block[1], block[2], block[3]);
+        // printf("[Thread %lu] Block %d: %02X %02X %02X %02X\n", threadId, i, block[0], block[1], block[2], block[3]);
         for (int j=0; j < 4; j++) {
             dataState[j][i] = block[j];
         }
-        printState(dataState);
+    }
+    // Encrypt the data using AES
+    aes(keys, dataState); // Chiffrement AES
+    // Write the encrypted data back to the original location
+    for (int i=0; i < 4; i++) {
+        uint32_t encryptedBlock = 0;
+        for (int j=0; j < 4; j++) {
+            encryptedBlock |= (dataState[j][i] << (j * 8));
+        }
+        // printf("[Thread %lu] Encrypted Block %d: %08X\n", threadId, i, data[i]);
+        data[i] = encryptedBlock;
     }
 
     /* // Encrypt the data in chunks of 16 bytes
@@ -54,7 +65,7 @@ VOID CALLBACK EncryptWorkCallback(PTP_CALLBACK_INSTANCE instance, PVOID context,
     free(job); // Libérer la mémoire allouée pour le travail
 }
 
-void DispatchEcryption(state_t *keys, uint32_t* vue_address)
+void DispatchEcryption(state_t *keys, uint32_t* vue_address, uint64_t view_size)
 {
     PTP_POOL pool = CreateThreadpool(NULL);
     
@@ -66,29 +77,59 @@ void DispatchEcryption(state_t *keys, uint32_t* vue_address)
     SetThreadpoolThreadMaximum(pool, 4); // Par exemple 4 threads
     SetThreadpoolThreadMinimum(pool, 1);
 
-    PTP_CALLBACK_ENVIRON env = malloc(sizeof(TP_CALLBACK_ENVIRON));
+  /*   PTP_CALLBACK_ENVIRON env = malloc(sizeof(TP_CALLBACK_ENVIRON));
     if (!env) {
         printf("Memory allocation failed : %d\n", GetLastError());
         CloseThreadpool(pool);
         return;
     }
-    InitializeThreadpoolEnvironment(env);
-    SetThreadpoolCallbackPool(env, pool);
-    
-    for (SIZE_T offset = 0; offset < VIEW_SIZE; offset += CHUNK_SIZE) {
-        EncryptJob* job = (EncryptJob*)malloc(sizeof(EncryptJob));
-        job->ptr = vue_address + offset;
-        job->size = CHUNK_SIZE;
+ */
+    TP_CALLBACK_ENVIRON env;  // Sur la pile, pas avec malloc
+    InitializeThreadpoolEnvironment(&env);
 
-        PTP_WORK work = CreateThreadpoolWork(EncryptWorkCallback, job, env);
+    PTP_CLEANUP_GROUP cleanupGroup = CreateThreadpoolCleanupGroup();
+    if (cleanupGroup == NULL) {
+        printf("CreateThreadpoolCleanupGroup failed.\n");
+        CloseThreadpool(pool);
+        DestroyThreadpoolEnvironment(&env);
+        return;
+    }
+
+    //InitializeThreadpoolEnvironment(env);
+    SetThreadpoolCallbackPool(&env, pool);
+    SetThreadpoolCallbackCleanupGroup(&env, cleanupGroup, NULL);
+
+    
+    for (SIZE_T offset = 0; offset < view_size; offset += CHUNK_SIZE) {
+        // printf("Dispatching encryption for chunk at offset %llu\n", (unsigned long long)offset);
+        if (offset + CHUNK_SIZE > view_size) {
+            break; // Ne pas dépasser la taille de la vue
+        }
+        EncryptJob* job = (EncryptJob*)malloc(sizeof(EncryptJob));
+        if (!job) {
+            printf("Memory allocation failed for job.\n");
+            continue;
+        }
+        job->ptr = vue_address + offset;
+        job->size = CHUNK_SIZE; 
+        memcpy(job->keys, keys, sizeof(state_t) * 10);  // Copier les clés
+
+
+        PTP_WORK work = CreateThreadpoolWork(EncryptWorkCallback, job, &env);
         if (work) {
             SubmitThreadpoolWork(work);
             CloseThreadpoolWork(work); // libérera automatiquement après exécution
+        } else {
+            printf("Falied to create work item.\n");
+            free(job);
         }
     }
 
-    // Attention la fonction est mal paramétrée, il faut donner un work en paramètre
-    WaitForThreadpoolWorkCallbacks(env, FALSE); // Attendre la fin de tous les travaux
-    
-    CloseThreadpool(env);
+    CloseThreadpoolCleanupGroupMembers(cleanupGroup, FALSE, NULL);
+    printf("Threadpool ended \n");
+    CloseThreadpoolCleanupGroup(cleanupGroup);
+    CloseThreadpool(pool);
+    DestroyThreadpoolEnvironment(&env);
+   
+    printf("All work submitted.\n");
 }

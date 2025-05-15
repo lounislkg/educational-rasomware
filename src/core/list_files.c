@@ -52,7 +52,7 @@ void freeHandleArray(FileDataArray *arr)
     arr->capacity = 0;
 }
 
-void list_files(char *dir, FileDataArray *arr)
+void list_files(char *dir, FileDataArray *arr, DWORD* file_size)
 {
     char o_dir[MAX_PATH]; // Original directory name to prevent from *.* being added to the path
     snprintf(o_dir, sizeof(o_dir), "%s", dir);

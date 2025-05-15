@@ -256,10 +256,10 @@ static void Round(state_t state, state_t key)
     AddRoundKey(&new_state, key);
 }
 
-int aes(state_t keys[10], char bytes[16])
+int aes(state_t keys[10], state_t dataState)
 {
-    // Extract the state from the command line arguments
-    state_t state = {{0}}; // Initialize all values to zero
+    /* // Extract the state from the command line arguments
+    state_t *state = dataState; // Initialize all values to zero
     printf("Argv : %s\n", bytes);
     if (bytes == NULL || keys == NULL)
     {
@@ -270,11 +270,21 @@ int aes(state_t keys[10], char bytes[16])
     {
         char buff[2] = {bytes[i * 2], bytes[i * 2 + 1]}; // Create a string of 2 chars
         sscanf(buff, "%2hhx", &state[i / 4][i % 4]);
+    } */
+    state_t state = {{0}}; // Initialize all values to zero
+    // Fill the state with the dataState
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            state[i][j] = dataState[i][j];
+        }
     }
-
+    
+   /*  // Print the initial state
     printf("Initial State:\n");
     printState(state);
-
+ */
     // Call the Round function 10 times for the 10 rounds
     for (int i = 0; i < 10; i++)
     {
@@ -286,10 +296,19 @@ int aes(state_t keys[10], char bytes[16])
     state_t new_state = {{0}}; // Initialize new_state to zero
     ShiftRows(state, new_state);
     AddRoundKey(&new_state, keys[9]);
-
+/* 
     printf("Final State:\n");
     printState(new_state);
-
+ */
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            dataState[i][j] = new_state[i][j];
+        }
+        
+    }
+    
     
 
     // Check if there's something to free
