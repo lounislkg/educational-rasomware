@@ -14,6 +14,6 @@ typedef struct {
     int capacity;    // capacité actuelle allouée
 } FileDataArray;
 
-void list_files(char *dir, FileDataArray* arr);
+void list_files(char *dir, FileDataArray *arr, DWORD* file_size);
 void initHandleArray(FileDataArray* arr);
 void freeHandleArray(FileDataArray* arr);

@@ -1,6 +1,7 @@
-#define _WIN32_WINNT 0x0600 // Windows 7 and later
-#include <windows.h>
+#include <stdio.h>
+#define __WIN32_WINNT 0x0600 // Windows 7 and later
 #include "core/aes_wrapper.h"
+#include <windows.h>
 
 #define CHUNK_SIZE 4
 #define CHUNK_SIZE_ELEMENT 4 // 4 octets par uint32_t * 4 = 16 octets
@@ -66,7 +67,6 @@ VOID CALLBACK EncryptWorkCallback(PTP_CALLBACK_INSTANCE instance, PVOID context,
         aes(keys, block); // Chiffrement AES
         memcpy(data + i / sizeof(uint32_t), block, CHUNK_SIZE);
     } */
-   
 
     free(job); // Libérer la mémoire allouée pour le travail
 }
@@ -125,7 +125,6 @@ void DispatchEcryption(state_t *keys, uint32_t *vue_address, uint64_t view_size)
         job->ptr = vue_address + element_offset;
         job->size = CHUNK_SIZE_ELEMENT;
         memcpy(job->keys, keys, sizeof(state_t) * 10); // Copier les clés
-
         PTP_WORK work = CreateThreadpoolWork(EncryptWorkCallback, job, &env);
         if (work)
         {
@@ -137,11 +136,10 @@ void DispatchEcryption(state_t *keys, uint32_t *vue_address, uint64_t view_size)
             free(job);
         }
     }
-
+    
     printf("Waiting for all work to complete...\n");
     // WaitForThreadpoolWorkCallbacks(cleanupGroup, FALSE); // Attendre que tous les travaux soient terminés
     CloseThreadpoolCleanupGroupMembers(cleanupGroup, FALSE, NULL);
-
     CloseThreadpoolCleanupGroup(cleanupGroup);
     DestroyThreadpoolEnvironment(&env);
     CloseThreadpool(pool);

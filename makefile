@@ -1,41 +1,36 @@
-# Nom de l'exécutable
+# Posix Version (POSIX.1-2008) /!\ the resulting executable is only for Windows
+# Compilateur et options
+CC = x86_64-w64-mingw32-gcc
+CFLAGS = -O0 -g -I./include
+LDFLAGS = -lws2_32 -lntdll
 TARGET = test.exe
 
-# Répertoires
-INCLUDE_DIR = include
-SRC_DIR = src
-CORE_DIR = $(SRC_DIR)/core
-UTILS_DIR = $(SRC_DIR)/utils
-ASM_DIR = $(CORE_DIR)/assembly
+# Fichiers sources C
+SRC_C = \
+  ./src/core/my_aes.c \
+  ./src/core/rsa.c \
+  ./src/utils/rng.c \
+  ./src/utils/bn.c \
+  ./src/core/api_client.c \
+  ./src/core/encrypter.c \
+  ./src/core/aes_wrapper.c
 
-# Options du compilateur
-CFLAGS = -O0 -g -I$(INCLUDE_DIR)
-
-# Fichiers source C
-SRC = \
-  $(CORE_DIR)/my_aes.c \
-  $(CORE_DIR)/rsa.c \
-  $(UTILS_DIR)/rng.c \
-  $(UTILS_DIR)/bn.c \
-  $(CORE_DIR)/api_client.c \
-  $(CORE_DIR)/encrypter.c \
-  $(CORE_DIR)/aes_wrapper.c
-
-# Objets assembleur (déjà compilés en .o)
+# Fichiers objets assembleur (déjà compilés, ou à assembler à part)
 ASM_OBJ = \
-  $(ASM_DIR)/NtCreateFile.o \
-  $(ASM_DIR)/NtMapViewOfSection.o \
-  $(ASM_DIR)/NtCreateSection.o
+  ./src/core/assembly/NtCreateFile.o \
+  ./src/core/assembly/NtMapViewOfSection.o \
+  ./src/core/assembly/NtCreateSection.o
 
-# Librairies
-LIBS = -lws2_32 -lntdll
+# Règle par défaut
+all: $(TARGET)
 
-# Commande de compilation
-$(TARGET): $(SRC) $(ASM_OBJ)
-	gcc $(CFLAGS) -o $@ $(SRC) $(ASM_OBJ) $(LIBS)
+# Compilation de l'exécutable
+$(TARGET): $(SRC_C) $(ASM_OBJ)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-# Cible pour nettoyer les fichiers générés
+# Nettoyage des fichiers générés
 clean:
-	del /Q $(TARGET)
+	rm -f $(TARGET)
 
-.PHONY: clean
+.PHONY: all clean
+
