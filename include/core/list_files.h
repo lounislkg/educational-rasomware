@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_PATH_LENGTH 1000
+
 typedef struct {
     char *cFileName; // nom du fichier + long que MAX_PATH
     FILETIME ftLastAccessTime; // date de dernier accès
@@ -14,6 +16,6 @@ typedef struct {
     int capacity;    // capacité actuelle allouée
 } FileDataArray;
 
-void list_files(char *dir, FileDataArray* arr);
+void list_files(char *dir, FileDataArray *arr, DWORD* file_size);
 void initHandleArray(FileDataArray* arr);
 void freeHandleArray(FileDataArray* arr);

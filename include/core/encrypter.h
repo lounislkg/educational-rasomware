@@ -56,3 +56,5 @@ EXTERN_C NTSTATUS SysNtMapViewOfSection(
 	IN ULONG AllocationType OPTIONAL,
 	IN ULONG Protect
 );
+
+int encrypter(PCWSTR filePath, int encryptionRatio);

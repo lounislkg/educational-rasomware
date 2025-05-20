@@ -19,7 +19,9 @@ SRC = \
   $(UTILS_DIR)/bn.c \
   $(CORE_DIR)/api_client.c \
   $(CORE_DIR)/encrypter.c \
-  $(CORE_DIR)/aes_wrapper.c
+  $(CORE_DIR)/aes_wrapper.c \
+  $(CORE_DIR)/list_files.c \
+  ./main.c 
 
 # Objets assembleur (déjà compilés en .o)
 ASM_OBJ = \

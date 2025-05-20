@@ -19,9 +19,9 @@ int addHandle(FileDataArray *arr, WIN32_FIND_DATA win32_fd, char file_path[3096]
     strcpy(copiedFileName, file_path);
 
     FileData fd_to_add = {
-        .cFileName = copiedFileName,                              // Exemple d'attribut
+        .cFileName = copiedFileName,                   // Exemple d'attribut
         .ftLastAccessTime = win32_fd.ftLastAccessTime, // Exemple d'attribut
-        .nFileSizeHigh = win32_fd.nFileSizeHigh          // Exemple d'attribut
+        .nFileSizeHigh = win32_fd.nFileSizeHigh        // Exemple d'attribut
     };
     arr->length++;
     if (arr->length >= arr->capacity)
@@ -52,9 +52,39 @@ void freeHandleArray(FileDataArray *arr)
     arr->capacity = 0;
 }
 
-void list_files(char *dir, FileDataArray *arr, DWORD* file_size)
+int validate_file(WIN32_FIND_DATA findFileData)
 {
-    char o_dir[MAX_PATH]; // Original directory name to prevent from *.* being added to the path
+    // Check if the file is a dll or exe
+    if (strstr(findFileData.cFileName, ".dll") || strstr(findFileData.cFileName, ".exe"))
+    {
+        return 1; // Skip dll and exe files
+    }
+    // Check if file is more than 0 bytes
+    if (findFileData.nFileSizeHigh == 0 && findFileData.nFileSizeLow == 0)
+    {
+        return 1; // Skip empty files
+    }
+    // Check if the file is a directory
+    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+        return 1; // Skip directories
+    }
+    // Check if the file is hidden
+    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
+    {
+        return 1; // Skip hidden files
+    }
+    // Check if the file is a system file
+    if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM)
+    {
+        return 1; // Skip system files
+    }
+    return 0; // Valid file
+}
+
+void list_files(char *dir, FileDataArray *arr, DWORD *file_size)
+{
+    char o_dir[MAX_PATH_LENGTH]; // Original directory name to prevent from *.* being added to the path
     snprintf(o_dir, sizeof(o_dir), "%s", dir);
     strcat(dir, "\\*.*");
     WIN32_FIND_DATA findFileData;
@@ -70,20 +100,19 @@ void list_files(char *dir, FileDataArray *arr, DWORD* file_size)
     {
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            printf("Directory: %s\n", findFileData.cFileName);
+            //printf("Directory: %s\n", findFileData.cFileName);
             if (findFileData.cFileName[0] == '.' && (findFileData.cFileName[1] == '\0' || (findFileData.cFileName[1] == '.' && findFileData.cFileName[2] == '\0')))
             {
                 // Skip the current and parent directory entries
                 continue;
             }
-            // MAX_PATH is defined in windows.h and is typically 260 characters
-            char new_dir[MAX_PATH];
-            snprintf(new_dir, MAX_PATH, "%s\\%s", o_dir, findFileData.cFileName);
-            if (strlen(dir) + strlen(new_dir) > MAX_PATH)
+            char new_dir[MAX_PATH_LENGTH];
+            snprintf(new_dir, MAX_PATH_LENGTH, "%s\\%s", o_dir, findFileData.cFileName);
+            if (strlen(dir) + strlen(new_dir) > MAX_PATH_LENGTH)
             {
                 printf("Path too long: %s\n", new_dir);
             }
-            list_files(new_dir, arr); // Recursive call to list_files
+            list_files(new_dir, arr, 0); // Recursive call to list_files
         }
         else
         {
@@ -91,10 +120,13 @@ void list_files(char *dir, FileDataArray *arr, DWORD* file_size)
             // Add the file to the array
             char file_path[3096];
             snprintf(file_path, 3096, "%s\\%s", o_dir, findFileData.cFileName);
-            if (addHandle(arr, findFileData, file_path) != 0)
+            if (validate_file(findFileData) == 0)
             {
-                fprintf(stderr, "Error adding file to array\n");
-                return;
+                if (addHandle(arr, findFileData, file_path) != 0)
+                {
+                    fprintf(stderr, "Error adding file to array\n");
+                    return;
+                }
             }
         }
     } while (FindNextFile(hFind, &findFileData) != 0);
