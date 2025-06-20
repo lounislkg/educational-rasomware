@@ -93,6 +93,7 @@ void list_files(char *dir, FileDataArray *arr, DWORD *file_size)
     if (hFind == INVALID_HANDLE_VALUE)
     {
         printf("Error finding files in directory: %s\n", dir);
+        printf("Last Error : %d \n", GetLastError());
         return;
     }
 
@@ -100,7 +101,7 @@ void list_files(char *dir, FileDataArray *arr, DWORD *file_size)
     {
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         {
-            //printf("Directory: %s\n", findFileData.cFileName);
+            // printf("Directory: %s\n", findFileData.cFileName);
             if (findFileData.cFileName[0] == '.' && (findFileData.cFileName[1] == '\0' || (findFileData.cFileName[1] == '.' && findFileData.cFileName[2] == '\0')))
             {
                 // Skip the current and parent directory entries

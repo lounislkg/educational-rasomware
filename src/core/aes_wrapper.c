@@ -104,6 +104,7 @@ void DispatchEcryption(state_t *keys, uint32_t *vue_address, uint64_t view_size)
         return;
     }
 
+
     // InitializeThreadpoolEnvironment(env);
     SetThreadpoolCallbackPool(&env, pool);
     SetThreadpoolCallbackCleanupGroup(&env, cleanupGroup, NULL);

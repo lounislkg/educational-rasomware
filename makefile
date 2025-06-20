@@ -21,6 +21,7 @@ SRC = \
   $(CORE_DIR)/encrypter.c \
   $(CORE_DIR)/aes_wrapper.c \
   $(CORE_DIR)/list_files.c \
+  $(CORE_DIR)/changeBackground.c \
   ./main.c 
 
 # Objets assembleur (déjà compilés en .o)
